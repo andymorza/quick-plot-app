@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
@@ -61,6 +61,7 @@
             justify-content: center;
         }
 
+
         /* Status Message Style */
         #statusMessage {
             text-align: center; 
@@ -74,6 +75,7 @@
             flex-shrink: 0;
             margin-top: auto;
         }
+
 
         /* QUICK ACTION BUTTONS STYLES */
         .quick-actions {
@@ -108,10 +110,8 @@
             background-color: #2196f3; /* Blue */
         }
         
-        .quick-actions button.active {
-            box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.7), 0 0 0 6px rgba(0, 0, 0, 0.2); 
-            opacity: 1;
-        }
+        /* Removed .active CSS, no longer needed for quick log */
+
 
         /* LOG Button Style */
         #logButton {
@@ -246,6 +246,7 @@
             </div>
             <div id="livePreview">Loading...</div>
 
+
             <p id="statusMessage" style="text-align: center; color: #d9534f;"></p>
             
             <div id="plotBottom">
@@ -284,7 +285,9 @@
     const tabButtons = document.querySelectorAll('.tab-button');
     const quickActionButtons = document.querySelectorAll('.quick-actions button');
     
-    let selectedQuickTitle = 'Untitled Log';
+    // Initial quick title is no longer needed since quick buttons log directly
+    let defaultLogTitle = 'Untitled Log'; 
+
 
     const STORAGE_KEY = 'simpleTimeLogs';
     let currentPositionData = {
@@ -292,9 +295,11 @@
         location: 'Waiting for GPS signal...'
     };
 
+
     function showTab(screenId) {
         plotScreen.style.display = 'none';
         historyScreen.style.display = 'none';
+
 
         if (screenId === 'historyScreen') {
             historyScreen.style.display = 'block';
@@ -303,10 +308,12 @@
             plotScreen.style.display = 'flex';
         }
 
+
         tabButtons.forEach(btn => {
             btn.classList.toggle('active', btn.dataset.tab === screenId);
         });
     }
+
 
     tabButtons.forEach(button => {
         button.addEventListener('click', () => {
@@ -314,14 +321,17 @@
         });
     });
 
+
     function loadLogs() {
         const json = localStorage.getItem(STORAGE_KEY);
         return json ? JSON.parse(json) : [];
     }
 
+
     function saveLogs(logs) {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(logs));
     }
+
 
     function deleteLog(id) {
         if (confirm('Are you sure you want to delete this log entry?')) {
@@ -332,6 +342,7 @@
         }
     }
 
+
     function clearAllLogs() {
         if (confirm('WARNING: This will permanently delete ALL saved logs. Are you sure?')) {
             localStorage.removeItem(STORAGE_KEY);
@@ -339,13 +350,16 @@
         }
     }
 
+
     function toDMM(decimal, isLat) {
         const absDecimal = Math.abs(decimal);
         const degrees = Math.floor(absDecimal);
         const minutes = (absDecimal - degrees) * 60;
         let direction = isLat ? (decimal >= 0 ? 'N' : 'S') : (decimal >= 0 ? 'E' : 'W');
+        // The degree symbol is intentionally kept here for display in the live preview
         return `${degrees}° ${minutes.toFixed(3)}' ${direction}`;
     }
+
 
     function formatCurrentTime(now) {
         const year = now.getFullYear();
@@ -363,12 +377,14 @@
         return `${year}-${month}-${day} ${hours}:${minutes}:${seconds} ${timezone}`;
     }
 
+
     function updateLivePreview() {
         const now = new Date();
         const timeString = formatCurrentTime(now);
         currentPositionData.time = timeString;
         livePreviewDiv.innerHTML = `${currentPositionData.time}<br>${currentPositionData.location}`;
     }
+
 
     function startLocationWatch() {
         if (!navigator.geolocation) {
@@ -399,27 +415,25 @@
         );
     }
     
-    function setLogTitle(title, buttonElement) {
-        selectedQuickTitle = title;
-        statusMessage.textContent = `Ready to log: ${title}`;
-        
-        quickActionButtons.forEach(btn => btn.classList.remove('active'));
-        if (buttonElement) {
-            buttonElement.classList.add('active');
-        }
+    // Helper function for quick logging
+    function quickLog(title) {
+        logCurrentData(title);
     }
 
-    function logCurrentData() {
+
+    // Main log function, accepts an optional title
+    function logCurrentData(title = defaultLogTitle) {
         if (currentPositionData.location.startsWith('Waiting for') || currentPositionData.location.startsWith('GPS Error')) {
             statusMessage.textContent = 'Wait for a valid GPS fix before logging.';
             return;
         }
         logButton.disabled = true;
-        statusMessage.textContent = 'Logging entry...';
+        statusMessage.textContent = `Logging entry: ${title}...`;
+
 
         const newLog = {
             id: Date.now(),
-            title: selectedQuickTitle,
+            title: title,
             timestamp: currentPositionData.time,
             location: currentPositionData.location,
             lat_decimal: currentPositionData.decimalLatitude,
@@ -427,16 +441,16 @@
             note: ''
         };
 
+
         const logs = loadLogs();
         logs.unshift(newLog);
         saveLogs(logs);
 
-        statusMessage.textContent = 'Entry logged!';
+
+        statusMessage.textContent = `Entry logged: ${title}!`;
         logButton.disabled = false;
-        
-        // Reset the title selection after logging
-        setLogTitle('Untitled Log', null);
     }
+
 
     function updateLogProperty(id, property, value) {
         const logs = loadLogs();
@@ -447,11 +461,13 @@
         }
     }
 
+
     async function shareLogNative(id) {
         if (!navigator.share) {
-            alert('Your device/browser does not support native sharing. Please update or use Chrome/Samsung Internet.');
+            alert('Your device/browser does not support native sharing. Please update or use a fully supported PWA installation.');
             return;
         }
+
 
         const logs = loadLogs();
         const log = logs.find(log => log.id === id);
@@ -466,6 +482,7 @@
             `DEC: ${log.lat_decimal}, ${log.lon_decimal}\n` +
             `Notes: ${log.note || 'No notes added.'}`;
 
+
         try {
             await navigator.share({
                 title: `${log.title} Report`,
@@ -477,6 +494,7 @@
         }
     }
 
+
     function exportLogsToCSV() {
         const logs = loadLogs();
         if (logs.length === 0) {
@@ -484,14 +502,19 @@
             return;
         }
 
+
         // 7-Column CSV Header
         let csvContent = "Title,Timestamp,Location_DMM_Lat,Location_DMM_Lon,Latitude_Decimal,Longitude_Decimal,Notes\n";
+
 
         logs.forEach(log => {
             // Split DMM location string into two lines (Lat and Lon)
             const dmmLines = log.location.split('\n');
-            const dmmLat = dmmLines[0] || '';
-            const dmmLon = dmmLines[1] || '';
+            
+            // FIX: Remove the degree symbol (°) from the DMM string to prevent the Â encoding error in the CSV file.
+            const dmmLat = dmmLines[0] ? dmmLines[0].replace(/°/g, '') : '';
+            const dmmLon = dmmLines[1] ? dmmLines[1].replace(/°/g, '') : '';
+
 
             // Clean up notes for CSV (replace quotes/newlines)
             const cleanNote = log.note ? log.note.replace(/"/g, '""').replace(/(\r\n|\n|\r)/gm, ' ') : '';
@@ -500,13 +523,16 @@
             const latDec = log.lat_decimal;
             const lonDec = log.lon_decimal;
 
+
             // Construct the CSV row
             csvContent += `"${log.title}","${log.timestamp}","${dmmLat}","${dmmLon}",${latDec},${lonDec},"${cleanNote}"\n`;
         });
 
+
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
         const url = URL.createObjectURL(blob);
+
 
         link.setAttribute("href", url);
         link.setAttribute("download", `QuickPlot_Export_${new Date().toISOString().slice(0, 10)}.csv`);
@@ -552,6 +578,7 @@
         attachEventListeners();
     }
 
+
     function attachEventListeners() {
         document.querySelectorAll('.log-entry input[type="text"], .log-entry textarea').forEach(element => {
             element.onblur = (e) => {
@@ -573,24 +600,29 @@
             };
         });
         
+        // REFACTORED: Quick log buttons now directly call logCurrentData
         quickActionButtons.forEach(button => {
             button.onclick = (e) => {
-                setLogTitle(button.dataset.title, button);
+                quickLog(button.dataset.title);
             };
         });
     }
 
+
     clearAllButton.addEventListener('click', clearAllLogs);
     exportCSVButton.addEventListener('click', exportLogsToCSV);
-    logButton.addEventListener('click', logCurrentData);
+    // The main log button still logs with the default title
+    logButton.addEventListener('click', () => logCurrentData(defaultLogTitle));
 
-    setLogTitle(selectedQuickTitle, null);
 
+    // Removed initial call to setLogTitle, as it's no longer necessary
+    
     startLocationWatch();
     setInterval(updateLivePreview, 1000);
     showTab('plotScreen');
 
-    // ADDED: PWA Service Worker Registration for OFFLINE support
+
+    // PWA Service Worker Registration for OFFLINE support
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function() {
         navigator.serviceWorker.register('service-worker.js').then(function(registration) {
