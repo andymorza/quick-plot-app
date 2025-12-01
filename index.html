@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Quick Plot - GPS Logger</title>
+    <link rel="manifest" href="manifest.json">
     <style>
         /* Base Styles */
         body {
@@ -46,7 +47,7 @@
             background-color: #e9f7ff;
             border: 1px solid #b3e0ff;
             padding: 25px 15px;
-            margin: 40px 0 10px; /* Reduced bottom margin to bring status message closer */
+            margin: 40px 0 10px; 
             border-radius: 8px;
             text-align: center;
             font-size: 1.4em;
@@ -63,10 +64,10 @@
         /* Status Message Style */
         #statusMessage {
             text-align: center; 
-            color: #d9534f; /* Using a mild red for feedback */
+            color: #d9534f; 
             font-weight: 600;
-            margin-top: 10px; /* Separates it from live preview */
-            margin-bottom: 5px; /* Separates it from quick actions */
+            margin-top: 10px; 
+            margin-bottom: 5px; 
         }
         
         #plotBottom {
@@ -448,7 +449,7 @@
 
     async function shareLogNative(id) {
         if (!navigator.share) {
-            alert('Your browser does not support native sharing.');
+            alert('Your device/browser does not support native sharing. Please update or use Chrome/Samsung Internet.');
             return;
         }
 
@@ -588,6 +589,17 @@
     startLocationWatch();
     setInterval(updateLivePreview, 1000);
     showTab('plotScreen');
+
+    // ADDED: PWA Service Worker Registration for OFFLINE support
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('service-worker.js').then(function(registration) {
+          console.log('ServiceWorker registration successful with scope: ', registration.scope);
+        }, function(err) {
+          console.log('ServiceWorker registration failed: ', err);
+        });
+      });
+    }
 </script>
 </body>
 </html>
