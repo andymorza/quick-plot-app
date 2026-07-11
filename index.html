@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skipper Log Tool</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f7f6;
+            margin: 0;
+            padding: 0;
+            padding-bottom: 70px; 
+            color: #333;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 16px;
+        }
+        
+        h1 { margin-top: 5px; margin-bottom: 15px; font-size: 24px; }
+
+        /* --- ERGONOMIC THUMB-ZONE NAVIGATION LAYOUT --- */
+        .log-screen-layout {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 100px); 
+        }
+        
+        .telemetry-expansion-area { 
+            flex-grow: 1; 
+            display: flex;
+            flex-direction: column;
+            justify-content: center; 
+        }
+
+        /* --- TELEMETRY DISPLAY --- */
+        .telemetry-box {
+            background-color: #ffffff;
+            padding: 35px 20px; 
+            border-radius: 14px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            border: 1px solid #e2e8f0;
+            text-align: center; 
+        }
+        .telemetry-time-display {
+            font-size: 26px;
+            font-weight: bold;
+            margin-bottom: 25px;
+            color: #1e293b;
+        }
+        .telemetry-gps-display {
+            font-size: 22px; 
+            font-weight: bold;
+            color: #007aff;
+            line-height: 1.5; 
+        }
+
+        /* --- THUMB ZONE CONTROLS --- */
+        .thumb-controls-group {
+            margin-bottom: 8px; 
+        }
+
+        .species-dropdown {
+            width: 100%;
+            padding: 16px;
+            border: 2px solid #cbd5e1;
+            border-radius: 10px;
+            font-size: 18px;
+            background-color: white;
+            color: #333;
+            margin-bottom: 8px; 
+            box-sizing: border-box;
+        }
+
+        .big-log-btn {
+            display: block;
+            width: 100%;
+            padding: 30px 20px;
+            font-size: 26px; 
+            font-weight: bold;
+            background-color: #007aff; 
+            color: white;
+            border: none; 
+            border-radius: 14px;
+            box-shadow: 0 4px 10px rgba(0,122,255,0.3);
+            box-sizing: border-box;
+        }
+        .big-log-btn:active { background-color: #0056b3; }
+
+        /* --- MASTER LOGS INTERFACE --- */
+        .history-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .btn-bulk-export {
+            background-color: #10b981;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            font-size: 14px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(16,185,129,0.2);
+        }
+        .btn-bulk-export:active { background-color: #059669; }
+
+        /* --- UNIFIED CLEAN LOG CARDS --- */
+        .log-card {
+            background: white;
+            margin-bottom: 12px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+            overflow: hidden; 
+            display: flex; 
+            justify-content: space-between;
+            align-items: stretch; 
+        }
+        .card-content { padding: 15px; flex: 1; }
+        
+        .card-meta { 
+            font-size: 13px; 
+            color: #64748b; 
+            margin: 10px 0 12px 0; 
+            font-weight: bold;
+        }
+        
+        .card-select, .card-textarea {
+            width: 100%;
+            padding: 12px;
+            margin-top: 6px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 16px;
+            box-sizing: border-box;
+            font-family: inherit;
+            background-color: #f8fafc;
+            color: #333;
+        }
+
+        /* --- ACTION COLUMNS --- */
+        .action-column {
+            width: 60px;
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            border-left: 1px solid #edf2f7;
+        }
+        .btn-action {
+            flex: 1; border: none; cursor: pointer; font-size: 22px;
+            display: flex; align-items: center; justify-content: center;
+            font-family: Arial, sans-serif;
+            font-weight: bold;
+        }
+        .action-share { background-color: #f1f5f9; color: #475569; }
+        .action-delete { background-color: #fee2e2; color: #dc2626; border-top: 1px solid #e2e8f0;}
+
+        /* --- Navigation baseline --- */
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 60px;
+            background-color: #ffffff; display: flex; box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+            z-index: 10;
+        }
+        .nav-btn { flex: 1; border: none; background: none; font-size: 16px; font-weight: bold; color: #777; }
+        .nav-btn.active { color: #007aff; background-color: #f0f7ff; }
+    </style>
+</head>
+<body>
+
+    <div id="app">
+        <div class="container">
+            
+            <div v-show="currentTab === 'log'" class="log-screen-layout">
+                
+                <div class="telemetry-expansion-area">
+                    <div class="telemetry-box">
+                        <div class="telemetry-time-display">
+                            {{ liveTime }}
+                        </div>
+                        <div class="telemetry-gps-display">
+                            <template v-if="liveLat">
+                                <div>{{ liveLat }}</div>
+                                <div>{{ liveLng }}</div>
+                            </template>
+                            <span v-else style="color: #94a3b8; font-size: 18px;">Searching GPS...</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="thumb-controls-group">
+                    <select v-model="preSelectedSpecies" class="species-dropdown">
+                        <option value="">-- Quick Select Species --</option>
+                        <option v-for="item in speciesList" :key="item" :value="item">
+                            {{ item }}
+                        </option>
+                        <option value="Other">Other Wildlife</option>
+                    </select>
+
+                    <select v-model="preSelectedQuantity" class="species-dropdown" style="margin-bottom: 12px;">
+                        <option value="">-- Quick Select Quantity --</option>
+                        <option v-for="qty in quantityOptions" :key="qty" :value="qty">
+                            {{ qty }}
+                        </option>
+                    </select>
+                    
+                    <button class="big-log-btn" @click="createNewLog">
+                        Log Position
+                    </button>
+                </div>
+            </div>
+
+            <div v-show="currentTab === 'history'">
+                <div class="history-header-row">
+                    <h1>Master Logs ({{ totalLogsCount }})</h1>
+                    <button v-if="totalLogsCount > 0" class="btn-bulk-export" @click="exportAllToCSV">
+                        Export Master File
+                    </button>
+                </div>
+                
+                <div v-for="log in [...logs].reverse()" :key="log.id" class="log-card">
+                    
+                    <div class="card-content">
+                        <select v-model="log.species" class="card-select" style="margin-top: 0;">
+                            <option value="">-- Select Species --</option>
+                            <option v-for="item in speciesList" :key="item" :value="item">
+                                {{ item }}
+                            </option>
+                            <option value="Other">Other Wildlife</option>
+                        </select>
+
+                        <select v-model="log.quantity" class="card-select">
+                            <option value="">-- Select Quantity --</option>
+                            <option v-for="qty in quantityOptions" :key="qty" :value="qty">
+                                {{ qty }}
+                            </option>
+                        </select>
+                        
+                        <p class="card-meta">
+                            {{ log.timestamp }} &nbsp;|&nbsp; {{ log.lat }} &nbsp; {{ log.lng }}
+                        </p>
+                        
+                        <textarea v-model="log.notes" class="card-textarea" rows="3" placeholder="Notes / observations..."></textarea>
+                        
+                        <p style="font-size: 10px; color: #cbd5e1; margin: 8px 0 0 0;">ID: {{ log.id }}</p>
+                    </div>
+                    
+                    <div class="action-column">
+                        <button @click="exportSingleToCSV(log)" class="btn-action action-share" title="Export this log">➜</button>
+                        <button @click="deleteLog(log.id)" class="btn-action action-delete" title="Delete Log">✕</button>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+
+        <nav class="bottom-nav">
+            <button class="nav-btn" :class="{ active: currentTab === 'log' }" @click="currentTab = 'log'">
+                Log
+            </button>
+            <button class="nav-btn" :class="{ active: currentTab === 'history' }" @click="currentTab = 'history'">
+                History
+            </button>
+        </nav>
+    </div>
+
+    <script>
+        const { createApp } = Vue
+
+        createApp({
+            data() {
+                return {
+                    currentTab: 'log',
+                    liveTime: '',
+                    liveLat: null,
+                    liveLng: null,
+                    logs: [],
+                    preSelectedSpecies: '', 
+                    preSelectedQuantity: '',
+                    
+                    speciesList: [
+                        "Orca",
+                        "Humpback Whale",
+                        "Minke Whale",
+                        "Bottlenose Dolphin",
+                        "Common Dolphin",
+                        "Leopard Seal",
+                        "Little Blue Penguin",
+                        "Whale Shark"
+                    ],
+                    quantityOptions: ["1", "2", "3", "4+"]
+                }
+            },
+            computed: {
+                // FIXED: Evaluates correctly with our uniform terminology configuration
+                totalLogsCount() { 
+                    return this.logs.length; 
+                }
+            },
+            mounted() {
+                this.updateTime();
+                setInterval(this.updateTime, 1000);
+                this.trackLocation();
+
+                const savedLogs = localStorage.getItem('skipper_master_logs');
+                if (savedLogs) {
+                    this.logs = JSON.parse(savedLogs);
+                }
+            },
+            watch: {
+                logs: {
+                    deep: true,
+                    handler(newLogsValue) {
+                        localStorage.setItem('skipper_master_logs', JSON.stringify(newLogsValue));
+                    }
+                }
+            },
+            methods: {
+                getFormattedDateTime() {
+                    const now = new Date();
+                    const day = now.getDate().toString().padStart(2, '0');
+                    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+                    const year = now.getFullYear();
+                    const hours = now.getHours().toString().padStart(2, '0');
+                    const minutes = now.getMinutes().toString().padStart(2, '0');
+                    const seconds = now.getSeconds().toString().padStart(2, '0');
+                    return `${day}/${month}/${year} - ${hours}:${minutes}:${seconds}`;
+                },
+                updateTime() { this.liveTime = this.getFormattedDateTime(); },
+                trackLocation() {
+                    if (navigator.geolocation) {
+                        navigator.geolocation.watchPosition(
+                            (pos) => {
+                                this.liveLat = pos.coords.latitude.toFixed(6);
+                                this.liveLng = pos.coords.longitude.toFixed(6);
+                            },
+                            (error) => { console.error("GPS Error: ", error.message); },
+                            { enableHighAccuracy: true, maximumAge: 0 }
+                        );
+                    }
+                },
+                generateUniqueID() {
+                    const now = new Date();
+                    const timeString = now.getHours().toString().padStart(2, '0') + now.getMinutes().toString().padStart(2, '0');
+                    const randomBits = Math.random().toString(36).substring(2, 7).toUpperCase(); 
+                    return `${timeString}-${randomBits}`;
+                },
+                createNewLog() {
+                    const newLog = {
+                        id: this.generateUniqueID(),
+                        species: this.preSelectedSpecies, 
+                        quantity: this.preSelectedQuantity,
+                        timestamp: this.getFormattedDateTime(), 
+                        lat: this.liveLat || "No GPS Fix",
+                        lng: this.liveLng || "No GPS Fix",
+                        notes: ""
+                    };
+                    this.logs.push(newLog);
+                    this.preSelectedSpecies = ''; 
+                    this.preSelectedQuantity = '';
+                },
+                deleteLog(logId) {
+                    const logIndex = this.logs.findIndex(item => item.id === logId);
+                    if (logIndex !== -1) { this.logs.splice(logIndex, 1); }
+                },
+                exportAllToCSV() {
+                    let csvContent = "Log ID,Date,Time,Latitude,Longitude,Species,Quantity,Notes\n";
+                    this.logs.forEach(log => {
+                        const parts = log.timestamp.split(" - ");
+                        const dateStr = parts[0] || "";
+                        const timeStr = parts[1] || "";
+                        const escapedNotes = `"${(log.notes || '').replace(/"/g, '""')}"`;
+                        const escapedSpecies = `"${(log.species || 'Unassigned').replace(/"/g, '""')}"`;
+                        csvContent += `${log.id},${dateStr},${timeStr},${log.lat},${log.lng},${escapedSpecies},${log.quantity || 'Unspecified'},${escapedNotes}\n`;
+                    });
+                    this.downloadCSVFile(csvContent, "master_skipper_data.csv");
+                },
+                exportSingleToCSV(log) {
+                    let csvContent = "Log ID,Date,Time,Latitude,Longitude,Species,Quantity,Notes\n";
+                    const parts = log.timestamp.split(" - ");
+                    const dateStr = parts[0] || "";
+                    const timeStr = parts[1] || "";
+                    const escapedNotes = `"${(log.notes || '').replace(/"/g, '""')}"`;
+                    const escapedSpecies = `"${(log.species || 'Unassigned').replace(/"/g, '""')}"`;
+                    csvContent += `${log.id},${dateStr},${timeStr},${log.lat},${log.lng},${escapedSpecies},${log.quantity || 'Unspecified'},${escapedNotes}\n`;
+                    this.downloadCSVFile(csvContent, `log_${log.id}.csv`);
+                },
+                downloadCSVFile(csvText, filename) {
+                    const blob = new Blob([csvText], { type: 'text/csv;charset=utf-8;' });
+                    const link = document.createElement("a");
+                    link.href = URL.createObjectURL(blob);
+                    link.setAttribute("download", filename);
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                }
+            }
+        }).mount('#app')
+    </script>
+<!-- Register the Service Worker for Offline PWA Support -->
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./service-worker.js')
+                .then(reg => console.log('Service Worker Active!'))
+                .catch(err => console.error('Worker registration failed: ', err));
+        });
+    }
+</script>
+
+</body>
+</html>
