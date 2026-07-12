@@ -1,4 +1,4 @@
-const CACHE_NAME = 'skipper-v2';
+const CACHE_NAME = 'quickplot-v2';
 const ASSETS = [
   './',
   './index.html',

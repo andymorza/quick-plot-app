@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Skipper Log Tool</title>
+    <title>Wildlife Log Tool</title>
+    
     <link rel="manifest" href="./manifest.json">
+    
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <style>
         body {
@@ -124,11 +126,13 @@
         }
         .card-content { padding: 15px; flex: 1; }
         
+        /* FIX: Clean block text layout wrapping gracefully on standard phone display sizes */
         .card-meta { 
             font-size: 13px; 
             color: #64748b; 
             margin: 10px 0 12px 0; 
             font-weight: bold;
+            line-height: 1.4;
         }
         
         .card-select, .card-textarea {
@@ -161,7 +165,7 @@
         .action-share { background-color: #f1f5f9; color: #475569; }
         .action-delete { background-color: #fee2e2; color: #dc2626; border-top: 1px solid #e2e8f0;}
 
-        /* --- Navigation baseline --- */
+        /* --- NAVIGATION BASELINE --- */
         .bottom-nav {
             position: fixed; bottom: 0; left: 0; right: 0; height: 60px;
             background-color: #ffffff; display: flex; box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
@@ -218,12 +222,13 @@
             <div v-show="currentTab === 'history'">
                 <div class="history-header-row">
                     <h1>Master Logs ({{ totalLogsCount }})</h1>
-                        <button v-if="totalLogsCount > 0" class="btn-bulk-export" @click="exportAllToCSV">
-                            Export Master File
-                        </button>
+                    <button v-if="totalLogsCount > 0" class="btn-bulk-export" @click="exportAllToCSV">
+                        Export Master File
+                    </button>
                 </div>
-    
+                
                 <div v-for="log in [...logs].reverse()" :key="log.id" class="log-card">
+                    
                     <div class="card-content">
                         <select v-model="log.species" class="card-select" style="margin-top: 0;">
                             <option value="">-- Select Species --</option>
@@ -239,25 +244,24 @@
                                 {{ qty }}
                             </option>
                         </select>
-            
+                        
                         <div class="card-meta">
                             <div style="margin-bottom: 4px;">{{ log.timestamp }}</div>
-                                <div style="color: #007aff;">{{ log.lat }} &nbsp;&nbsp;&nbsp; {{ log.lng }}</div>
+                            <div style="color: #007aff;">{{ log.lat }} &nbsp;&nbsp;&nbsp; {{ log.lng }}</div>
                         </div>
-            
-            <textarea v-model="log.notes" class="card-textarea" rows="3" placeholder="Notes / observations..."></textarea>
-            
-            <p style="font-size: 10px; color: #cbd5e1; margin: 8px 0 0 0;">ID: {{ log.id }}</p>
-        </div>
-        
-        <div class="action-column">
-            <button @click="exportSingleToCSV(log)" class="btn-action action-share" title="Export this log">➜</button>
-            <button @click="deleteLog(log.id)" class="btn-action action-delete" title="Delete Log">✕</button>
-        </div>
+                        
+                        <textarea v-model="log.notes" class="card-textarea" rows="3" placeholder="Notes / observations..."></textarea>
+                        
+                        <p style="font-size: 10px; color: #cbd5e1; margin: 8px 0 0 0;">ID: {{ log.id }}</p>
+                    </div>
+                    
+                    <div class="action-column">
+                        <button @click="exportSingleToCSV(log)" class="btn-action action-share" title="Export this log">➜</button>
+                        <button @click="deleteLog(log.id)" class="btn-action action-delete" title="Delete Log">✕</button>
+                    </div>
 
-    </div>
-</div>
-
+                </div>
+            </div>
 
         </div>
 
@@ -299,7 +303,6 @@
                 }
             },
             computed: {
-                // FIXED: Evaluates correctly with our uniform terminology configuration
                 totalLogsCount() { 
                     return this.logs.length; 
                 }
@@ -404,16 +407,16 @@
             }
         }).mount('#app')
     </script>
-<!-- Register the Service Worker for Offline PWA Support -->
-<script>
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./service-worker.js')
-                .then(reg => console.log('Service Worker Active!'))
-                .catch(err => console.error('Worker registration failed: ', err));
-        });
-    }
-</script>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./service-worker.js')
+                    .then(reg => console.log('Service Worker Active!'))
+                    .catch(err => console.error('Worker registration failed: ', err));
+            });
+        }
+    </script>
 
 </body>
 </html>
